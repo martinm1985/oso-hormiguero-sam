@@ -69,14 +69,29 @@ class DatasetSegmentation(Dataset):
 
             return inputs
     
-def collate_fn(batch: torch.utils.data) -> list:
-    """
-    Used to get a list of dict as output when using a dataloader
+import torch.nn.functional as F
 
-    Arguments:
-        batch: The batched dataset
-    
-    Return:
-        (list): list of batched dataset so a list(dict)
+def collate_fn(batch):
     """
-    return list(batch)
+    Collate function that resizes all ground truth masks to a fixed size.
+    Ensures that all tensors in the batch have the same shape.
+    
+    Arguments:
+        batch (list of dict): List of samples from DatasetSegmentation.
+    
+    Returns:
+        list(dict): The transformed batch.
+    """
+    target_size = (1024, 1024)  # Ajusta este tamaño según lo que necesites
+
+    for sample in batch:
+        # Agregar dimensión del canal (C=1)
+        mask = sample["ground_truth_mask"].unsqueeze(0).unsqueeze(0).float()  # (1, H, W) → (1, 1, H, W)
+        
+        # Redimensionar la máscara
+        mask_resized = F.interpolate(mask, size=target_size, mode='nearest')
+        
+        # Quitar la dimensión extra de batch y canal
+        sample["ground_truth_mask"] = mask_resized.squeeze(0).squeeze(0)  # (1, 1, H, W) → (H, W)
+
+    return batch  # Devuelve la lista con máscaras normalizadas
