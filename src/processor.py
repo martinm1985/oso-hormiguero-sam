@@ -30,13 +30,13 @@ class Samprocessor:
         image_torch = self.process_image(image, original_size)
 
         # Transform input prompts
-        box_torch = self.process_prompt(prompt, original_size)
+        box_torch = self.process_prompt(prompt, original_size) if prompt else None # Llama a process_prompt solo si prompt no está vacío
 
         inputs = {"image": image_torch, 
                   "original_size": original_size,
-                 "boxes": box_torch,
-                 "prompt" : prompt}
-        
+                  "boxes": box_torch, # box_torch será None si prompt está vacío
+                  "prompt" : prompt}
+
         return inputs
 
 

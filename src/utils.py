@@ -86,19 +86,25 @@ def get_bounding_box(ground_truth_map: np.array) -> list:
   return bbox
 
 
-def stacking_batch(batch, outputs):
-    """
-    Given the batch and outputs of SAM, stacks the tensors to compute the loss. We stack by adding another dimension.
+import torch.nn.functional as F
 
-    Arguments:
-        batch(list(dict)): List of dict with the keys given in the dataset file
-        outputs: list(dict): List of dict that are the outputs of SAM
-    
-    Return: 
-        stk_gt: Stacked tensor of the ground truth masks in the batch. Shape: [batch_size, H, W] -> We will need to add the channels dimension (dim=1)
-        stk_out: Stacked tensor of logits mask outputed by SAM. Shape: [batch_size, 1, 1, H, W] -> We will need to remove the extra dimension (dim=1) needed by SAM 
+def stacking_batch(batch, outputs, target_size=(1024, 1024)):
     """
-    stk_gt = torch.stack([b["ground_truth_mask"] for b in batch], dim=0)
-    stk_out = torch.stack([out["low_res_logits"] for out in outputs], dim=0)
-        
+    Stacks the tensors to compute the loss, ensuring all tensors have the same shape.
+    """
+    # Redimensionar ground truth masks
+    resized_gt_masks = [
+        F.interpolate(b["ground_truth_mask"].unsqueeze(0).unsqueeze(0).float(), size=target_size, mode='nearest').squeeze(0).squeeze(0)
+        for b in batch
+    ]
+    
+    # Redimensionar las salidas del modelo (low_res_logits)
+    resized_outputs = [
+        F.interpolate(out["low_res_logits"], size=target_size, mode='bilinear', align_corners=False)
+        for out in outputs
+    ]
+    
+    stk_gt = torch.stack(resized_gt_masks, dim=0)  # (batch_size, H, W)
+    stk_out = torch.stack(resized_outputs, dim=0)  # (batch_size, 1, 1, H, W)
+
     return stk_gt, stk_out
